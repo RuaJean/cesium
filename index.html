@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>CesiumJS sin CesiumIon Token</title>
+    <title>CesiumJS - Nivel único de Zoom</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.87.1/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
@@ -13,24 +14,27 @@
             padding: 0;
             overflow: hidden;
         }
-        .cesium-widget-credits{
-            display:none !important;
+        /* Oculta créditos de Cesium */
+        .cesium-widget-credits {
+            display: none !important;
         }
     </style>
 </head>
 <body>
     <div id="cesiumContainer"></div>
     <script>
+        // Desactiva el token por defecto de Ion
         Cesium.Ion.defaultAccessToken = null;
 
+        // Atribución que se muestra en algunos proveedores base
         let CartoAttribution = 'Map tiles by <a href="https://carto.com">Carto</a>, under CC BY 3.0. Data by <a href="https://www.openstreetmap.org/">OpenStreetMap</a>, under ODbL.';
 
+        // Modelos de proveedores de imágenes para el baseLayerPicker
         var imageryViewModels = [];
-
         imageryViewModels.push(new Cesium.ProviderViewModel({
             name: 'OpenStreetMap',
             iconUrl: Cesium.buildModuleUrl('Widgets/Images/ImageryProviders/openStreetMap.png'),
-            tooltip: 'OpenStreetMap (OSM) es un proyecto colaborativo para crear un mapa editable y libre del mundo.\nhttp://www.openstreetmap.org',
+            tooltip: 'OpenStreetMap (OSM)',
             creationFunction: function() {
                 return new Cesium.UrlTemplateImageryProvider({
                     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -94,39 +98,68 @@
             }
         }));
 
+        // Inicializar el Viewer con un selector de capas (el xyz)
         var viewer = new Cesium.Viewer('cesiumContainer', {
             imageryProviderViewModels: imageryViewModels,
             selectedImageryProviderViewModel: imageryViewModels[0],
-          baseLayerPicker: true,
-            // baseLayerPicker: false, // Desactivar selector de capas base
-		//   geocoder: true, // Desactivar geocodificador
-		  homeButton: true, // Desactivar botón de inicio
-		//   sceneModePicker: false, // Desactivar selector de modo de escena
-		  navigationHelpButton: false, // Desactivar botón de ayuda de navegación
-		  animation: false, // Desactivar animación
-		  timeline: false, // Desactivar línea de tiempo
-		  fullscreenButton: false, // Desactivar botón de pantalla completa
-		//   vrButton: false, // Desactivar botón de VR
-		//   infoBox: false, // Desactivar cuadro de información
-		  selectionIndicator: false, // Desactivar indicador de selección
-          
+            baseLayerPicker: true,
+            homeButton: true,
+            navigationHelpButton: false,
+            animation: false,
+            timeline: false,
+            fullscreenButton: false,
+            selectionIndicator: false
         });
 
         viewer.scene.globe.enableLighting = true;
+
+        // Cargar el terreno
+        const terrainProvider = new Cesium.CesiumTerrainProvider({
+            url : './MDT_Postdana'
+        });
+
+        viewer.terrainProvider = terrainProvider;
+        
+        var rectangle = Cesium.Rectangle.fromDegrees(
+            -0.4797576,   // west
+            39.4360373,   // south
+            -0.4785643,   // east
+            39.4369627    // north
+        );
+        
+
+        var xyzProvider = new Cesium.UrlTemplateImageryProvider({
+            url: 'http://18.227.72.168/XYZ/{z}/{x}/{y}.png',
+            tileWidth: 512,
+            tileHeight: 512,
+            rectangle: rectangle,
+
+            minimumLevel: 20,
+            maximumLevel: 20
+        });
+
+        viewer.imageryLayers.addImageryProvider(xyzProvider);
+
+        xyzProvider.readyPromise.then(function() {
+            viewer.camera.flyTo({
+                destination: rectangle,
+                duration: 2
+            });
+        });
+
+        // Cargar el conjunto de datos 3D Tiles
+        const tileset = viewer.scene.primitives.add(
+            new Cesium.Cesium3DTileset({
+                url: './tileset/tileset.json'
+            })
+        );
+
+        tileset.readyPromise.then((tileset) => {
+            viewer.zoomTo(tileset);
+        }).otherwise(function(error) {
+            console.error(error);
+        });
     </script>
 </body>
 </html>
-<script>
 
-    const tileset = viewer.scene.primitives.add(
-        new Cesium.Cesium3DTileset({
-            url: 'http://18.227.72.168/TorrentFINAL/tileset.json'
-        })
-    );
-    tileset.readyPromise.then((tileset) => {
-        viewer.zoomTo(tileset);
-    });
-
-    console.log(tileset.root.transform);
-
-</script>
